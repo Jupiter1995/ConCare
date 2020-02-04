@@ -4,7 +4,7 @@ The source code for *ConCare: Personalized Clinical Feature Embedding via Captur
 
 Thanks for your interest in our work. More details about the experiment, case study and visualization system will be released before AAAI2020.
 
-Our paper can be find [here](https://www.researchgate.net/publication/337481368_ConCare_Personalized_Clinical_Feature_Embedding_via_Capturing_the_Healthcare_Context). 
+Our paper can be found [here](https://www.researchgate.net/publication/337481368_ConCare_Personalized_Clinical_Feature_Embedding_via_Capturing_the_Healthcare_Context). 
 
 ## Requirements
 
