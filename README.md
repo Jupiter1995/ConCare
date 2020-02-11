@@ -2,9 +2,24 @@
 
 The source code for *ConCare: Personalized Clinical Feature Embedding via Capturing the Healthcare Context*
 
-Thanks for your interest in our work. More details about the experiment, case study and visualization system will be released before AAAI2020.
-
 Our paper can be found [here](https://www.researchgate.net/publication/337481368_ConCare_Personalized_Clinical_Feature_Embedding_via_Capturing_the_Healthcare_Context). 
+Thanks for your interest in our work.
+
+## Visualization Tool
+Welcome to try the prototype of our visualization tool (AdaCare):
+
+http://47.93.42.104:8888/patient/215 (Cause of death: CVD)
+http://47.93.42.104:8888/patient/318 (Cause of death: GI disease)
+http://47.93.42.104:8888/patient/616 (Cause of death: Other)
+http://47.93.42.104:8888/patient/265 (Cause of death: GI disease)
+http://47.93.42.104:8888/patient/812 (Cause of death: Cachexia)
+http://47.93.42.104:8888/patient/455 (Cause of death: CVD)
+http://47.93.42.104:8888/patient/998 (Alive)
+http://47.93.42.104:8888/patient/544 (Alive)
+
+AdaCare can be found [here](https://github.com/Accountable-Machine-Intelligence/AdaCare), which is our another work in AAAI-2020.
+
+The visualization of ConCare will be deployed soon.
 
 ## Requirements
 
