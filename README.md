@@ -19,7 +19,8 @@ http://47.93.42.104/544 (Alive)
 
 AdaCare can be found [here](https://github.com/Accountable-Machine-Intelligence/AdaCare), which is our another work in AAAI-2020.
 
-The visualization of ConCare will be deployed soon.
+Welcome to test the prototype of our visualization tool. The clinical hidden status is built by our latest representation learning model ConCare.
+The internationalised multi-language support will be available soon.
 
 ## Requirements
 
