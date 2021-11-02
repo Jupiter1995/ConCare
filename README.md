@@ -2,12 +2,6 @@
 
 The source code for *ConCare: Personalized Clinical Feature Embedding via Capturing the Healthcare Context*
 
-Our paper can be found [here](https://www.researchgate.net/publication/337481368_ConCare_Personalized_Clinical_Feature_Embedding_via_Capturing_the_Healthcare_Context). 
-Thanks for your interest in our work.
-
-## Visualization Tool
-Welcome to try the prototype of our visualization tool (AdaCare):
-
 http://47.93.42.104/215 (Cause of death: CVD)   
 http://47.93.42.104/318 (Cause of death: GI disease)   
 http://47.93.42.104/616 (Cause of death: Other)   
@@ -17,10 +11,7 @@ http://47.93.42.104/455 (Cause of death: CVD)
 http://47.93.42.104/998 (Alive)       
 http://47.93.42.104/544 (Alive)    
 
-AdaCare can be found [here](https://github.com/Accountable-Machine-Intelligence/AdaCare), which is our another work in AAAI-2020.
-
-Welcome to test the prototype of our visualization tool. The clinical hidden status is built by our latest representation learning model ConCare.
-The internationalised multi-language support will be available soon.
+Thanks for your interest in our work. Welcome to test the prototype of our visualization tool. The clinical hidden status is built by our latest representation learning model ConCare. The internationalised multi-language support will be available soon.
 
 ## Requirements
 
@@ -32,6 +23,11 @@ We do not provide the MIMIC-III data itself. You must acquire the data yourself 
 
 After building the **in-hospital mortality** dataset, please save the files in ```in-hospital-mortality``` directory to ```data/``` directory.
 
+## Update
+
+To make it easier for you to use our code as well as the data, we have uploaded the trained model as well.  We also upload the demographic (static baseline) information files to the Google Drive. You can download it from this link directly. https://drive.google.com/file/d/1TXn4UdtQCzfd7TdDJAo_6_IcnO2LUa1a/view?usp=sharing
+
 ## Run ConCare
 
 All the hyper-parameters and steps are included in the `.ipynb` file, you can run it directly.
+You can also load the trained model, which saved in the `concare0` file.
