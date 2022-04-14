@@ -1,0 +1,13 @@
+.DS_Store
+.DS_Store?
+.ipynb_checkpoints
+**/*.exe
+**/*.iml
+.idea
+idx*/**
+utils/__pycache__
+__pycache__
+*.pyc
+
+data/train
+data/demographic

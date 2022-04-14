@@ -1,0 +1,14 @@
+name: ConCare
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - pip
+  - python=3.7.3
+  - numpy
+  - pytorch
+  - cudatoolkit
+  - scipy
+  - scikit-learn
