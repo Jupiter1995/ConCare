@@ -11,3 +11,11 @@ __pycache__
 
 data/train
 data/demographic
+data/all/
+data/test.zip
+data/test/
+data/train.zip
+data/train_bench/
+data/train_listfile_bench.csv
+
+model
