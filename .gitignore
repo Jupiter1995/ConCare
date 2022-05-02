@@ -18,6 +18,7 @@ data/all/
 data/test.zip
 data/test/
 data/train.zip
+data/data_splits.zip
 data/train_bench/
 data/train_listfile_bench.csv
 

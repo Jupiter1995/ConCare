@@ -37,11 +37,11 @@ batch_size = 256
 epochs = 100
 
 # Build readers, discretizers, normalizers
-train_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'all'),
+train_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'train_val'),
                                          listfile=os.path.join(data_path, '{}_train_listfile.csv'.format(suffix)),
                                          period_length=48.0)
 
-val_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'all'),
+val_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'train_val'),
                                        listfile=os.path.join(data_path, '{}_val_listfile.csv'.format(suffix)),
                                        period_length=48.0)
 
