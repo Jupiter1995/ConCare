@@ -1,13 +1,15 @@
 import numpy as np
+import pandas as pd
 import argparse
 import os
-import imp
+#import imp
 import re
 import pickle
 import datetime
 import random
 import math
 import copy
+import sys
 
 
 import torch
@@ -26,19 +28,21 @@ from utils import common_utils
 
 
 data_path = './data/'
-file_name = './model/concare0'
-small_part = True
+data_in_hosp = os.path.join(data_path, 'all')
+suffix = sys.argv[1]
+file_name = './model/{}_concare0'.format(suffix)
+small_part = False
 arg_timestep = 1.0
 batch_size = 256
 epochs = 100
 
 # Build readers, discretizers, normalizers
-train_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'train'),
-                                         listfile=os.path.join(data_path, 'train_listfile.csv'),
+train_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'all'),
+                                         listfile=os.path.join(data_path, '{}_train_listfile.csv'.format(suffix)),
                                          period_length=48.0)
 
-val_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'train'),
-                                       listfile=os.path.join(data_path, 'val_listfile.csv'),
+val_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'all'),
+                                       listfile=os.path.join(data_path, '{}_val_listfile.csv'.format(suffix)),
                                        period_length=48.0)
 
 discretizer = Discretizer(timestep=arg_timestep,
@@ -94,13 +98,13 @@ for cur_name in os.listdir(demo_path):
         cur_demo[int(cur_data[1])] = 1
         cur_demo[5 + int(cur_data[2])] = 1
         cur_demo[9:] = cur_data[3:6]
-        cur_diag = np.array(cur_data[8:], dtype=np.int)
+        cur_diag = np.array(cur_data[8:], dtype=np.int32)
 
     demographic_data.append(cur_demo)
     diagnosis_data.append(cur_diag)
     idx_list.append(cur_id+'_'+cur_episode)
 
-for each_idx in range(9,12):
+for each_idx in range(9, 12):
     cur_val = []
     for i in range(len(demographic_data)):
         cur_val.append(demographic_data[i][each_idx])
@@ -654,7 +658,7 @@ for each_epoch in range(100):
 
 
         model_loss = get_loss(output, batch_y.unsqueeze(-1))
-        loss = model_loss + 800* decov_loss
+        loss = model_loss + 800 * decov_loss
 
         batch_loss.append(loss.cpu().detach().numpy())
         model_batch_loss.append(model_loss.cpu().detach().numpy())
@@ -692,7 +696,7 @@ for each_epoch in range(100):
 
             model_loss = get_loss(output, batch_y.unsqueeze(-1))
 
-            loss = model_loss + 10* decov_loss
+            loss = model_loss + 10 * decov_loss
             batch_loss.append(loss.cpu().detach().numpy())
             model_batch_loss.append(model_loss.cpu().detach().numpy())
             decov_batch_loss.append(decov_loss.cpu().detach().numpy())
@@ -724,3 +728,8 @@ for each_epoch in range(100):
         }
         torch.save(state, file_name)
         print('\n------------ Save best model ------------\n')
+
+# Save history as CSV
+history_pd = pd.DataFrame(history)
+
+history_pd.to_csv(os.path.join(data_path, '{}_history.csv'.format(suffix)))

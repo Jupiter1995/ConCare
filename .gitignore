@@ -11,6 +11,9 @@ __pycache__
 
 data/train
 data/demographic
+data/decompensation
+data/in-hospital-mortality
+data/train_val
 data/all/
 data/test.zip
 data/test/
