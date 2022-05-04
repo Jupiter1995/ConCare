@@ -1,30 +1,22 @@
 import numpy as np
 import pandas as pd
-import argparse
+
 import os
-#import imp
-import re
-import pickle
-import datetime
 import random
 import math
 import copy
 import sys
 
-
 import torch
 from torch import nn
-import torch.nn.utils.rnn as rnn_utils
 from torch.utils import data
 from torch.autograd import Variable
 import torch.nn.functional as F
-
 
 from utils import utils
 from utils.readers import InHospitalMortalityReader
 from utils.preprocessing import Discretizer, Normalizer
 from utils import metrics
-from utils import common_utils
 
 
 data_path = './data/'
@@ -621,67 +613,143 @@ model = ConCare(input_dim = 76, hidden_dim = 64, d_model = 64,  MHD_num_head = 4
 # input_dim, d_model, d_k, d_v, MHD_num_head, d_ff, output_dim
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-max_roc = 0
-max_prc = 0
-train_loss = []
-train_model_loss = []
-train_decov_loss = []
-valid_loss = []
-valid_model_loss = []
-valid_decov_loss = []
-history = []
-np.set_printoptions(threshold=np.inf)
-np.set_printoptions(precision=2)
-np.set_printoptions(suppress=True)
 
-for each_epoch in range(100):
+def train_val():
+    max_roc = 0
+    max_prc = 0
+    train_loss = []
+    train_model_loss = []
+    train_decov_loss = []
+    valid_loss = []
+    valid_model_loss = []
+    valid_decov_loss = []
+    history = []
+    np.set_printoptions(threshold=np.inf)
+    np.set_printoptions(precision=2)
+    np.set_printoptions(suppress=True)
+
+    for each_epoch in range(100):
+        batch_loss = []
+        model_batch_loss = []
+        decov_batch_loss = []
+
+        model.train()
+
+        for step, (batch_x, batch_y, batch_name) in enumerate(train_loader):
+            optimizer.zero_grad()
+            batch_x = batch_x.float().to(device)
+            batch_y = batch_y.float().to(device)
+
+            batch_demo = []
+            for i in range(len(batch_name)):
+                cur_id, cur_ep, _ = batch_name[i].split('_', 2)
+                cur_idx = cur_id + '_' + cur_ep
+                cur_demo = torch.tensor(demographic_data[idx_list.index(cur_idx)], dtype=torch.float32)
+                batch_demo.append(cur_demo)
+
+            batch_demo = torch.stack(batch_demo).to(device)
+            output, decov_loss = model(batch_x, batch_demo)
+
+
+            model_loss = get_loss(output, batch_y.unsqueeze(-1))
+            loss = model_loss + 800 * decov_loss
+
+            batch_loss.append(loss.cpu().detach().numpy())
+            model_batch_loss.append(model_loss.cpu().detach().numpy())
+            decov_batch_loss.append(decov_loss.cpu().detach().numpy())
+            loss.backward()
+            optimizer.step()
+
+            if step % 30 == 0:
+                print('Epoch %d Batch %d: Train Loss = %.4f'%(each_epoch, step, np.mean(np.array(batch_loss))))
+                print('Model Loss = %.4f, Decov Loss = %.4f'%(np.mean(np.array(model_batch_loss)), np.mean(np.array(decov_batch_loss))))
+        train_loss.append(np.mean(np.array(batch_loss)))
+        train_model_loss.append(np.mean(np.array(model_batch_loss)))
+        train_decov_loss.append(np.mean(np.array(decov_batch_loss)))
+
+        batch_loss = []
+        model_batch_loss = []
+        decov_batch_loss = []
+
+        y_true = []
+        y_pred = []
+        with torch.no_grad():
+            model.eval()
+            for step, (batch_x, batch_y, batch_name) in enumerate(valid_loader):
+                batch_x = batch_x.float().to(device)
+                batch_y = batch_y.float().to(device)
+                batch_demo = []
+                for i in range(len(batch_name)):
+                    cur_id, cur_ep, _ = batch_name[i].split('_', 2)
+                    cur_idx = cur_id + '_' + cur_ep
+                    cur_demo = torch.tensor(demographic_data[idx_list.index(cur_idx)], dtype=torch.float32)
+                    batch_demo.append(cur_demo)
+
+                batch_demo = torch.stack(batch_demo).to(device)
+                output,decov_loss = model(batch_x, batch_demo)
+
+                model_loss = get_loss(output, batch_y.unsqueeze(-1))
+
+                loss = model_loss + 10 * decov_loss
+                batch_loss.append(loss.cpu().detach().numpy())
+                model_batch_loss.append(model_loss.cpu().detach().numpy())
+                decov_batch_loss.append(decov_loss.cpu().detach().numpy())
+                y_pred += list(output.cpu().detach().numpy().flatten())
+                y_true += list(batch_y.cpu().numpy().flatten())
+
+        valid_loss.append(np.mean(np.array(batch_loss)))
+        valid_model_loss.append(np.mean(np.array(model_batch_loss)))
+        valid_decov_loss.append(np.mean(np.array(decov_batch_loss)))
+
+        print("\n==>Predicting on validation")
+        print('Valid Loss = %.4f'%(valid_loss[-1]))
+        print('valid_model Loss = %.4f'%(valid_model_loss[-1]))
+        print('valid_decov Loss = %.4f'%(valid_decov_loss[-1]))
+        y_pred = np.array(y_pred)
+        y_pred = np.stack([1 - y_pred, y_pred], axis=1)
+        ret = metrics.print_metrics_binary(y_true, y_pred)
+        history.append(ret)
+        print()
+
+        cur_auroc = ret['auroc']
+
+        if cur_auroc > max_roc:
+            max_roc = cur_auroc
+            state = {
+                'net': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'epoch': each_epoch
+            }
+            torch.save(state, file_name)
+            print('\n------------ Save best model ------------\n')
+
+    # Save history as CSV
+    history_pd = pd.DataFrame(history)
+    history_pd.to_csv(os.path.join(data_path, '{}_history.csv'.format(suffix)))
+
+
+def test():
+    checkpoint = torch.load(file_name)
+    save_epoch = checkpoint['epoch']
+    model.load_state_dict(checkpoint['net'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    model.eval()
+
+    test_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'test'),
+                                            listfile=os.path.join(data_path, 'test_listfile.csv'),
+                                            period_length=48.0)
+
+    test_raw = utils.load_data(test_reader, discretizer, normalizer, small_part, return_names=True)
+    test_dataset = Dataset(test_raw['data'][0], test_raw['data'][1], test_raw['names'])
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
     batch_loss = []
-    model_batch_loss = []
-    decov_batch_loss = []
-
-    model.train()
-
-    for step, (batch_x, batch_y, batch_name) in enumerate(train_loader):
-        optimizer.zero_grad()
-        batch_x = batch_x.float().to(device)
-        batch_y = batch_y.float().to(device)
-
-        batch_demo = []
-        for i in range(len(batch_name)):
-            cur_id, cur_ep, _ = batch_name[i].split('_', 2)
-            cur_idx = cur_id + '_' + cur_ep
-            cur_demo = torch.tensor(demographic_data[idx_list.index(cur_idx)], dtype=torch.float32)
-            batch_demo.append(cur_demo)
-
-        batch_demo = torch.stack(batch_demo).to(device)
-        output, decov_loss = model(batch_x, batch_demo)
-
-
-        model_loss = get_loss(output, batch_y.unsqueeze(-1))
-        loss = model_loss + 800 * decov_loss
-
-        batch_loss.append(loss.cpu().detach().numpy())
-        model_batch_loss.append(model_loss.cpu().detach().numpy())
-        decov_batch_loss.append(decov_loss.cpu().detach().numpy())
-        loss.backward()
-        optimizer.step()
-
-        if step % 30 == 0:
-            print('Epoch %d Batch %d: Train Loss = %.4f'%(each_epoch, step, np.mean(np.array(batch_loss))))
-            print('Model Loss = %.4f, Decov Loss = %.4f'%(np.mean(np.array(model_batch_loss)), np.mean(np.array(decov_batch_loss))))
-    train_loss.append(np.mean(np.array(batch_loss)))
-    train_model_loss.append(np.mean(np.array(model_batch_loss)))
-    train_decov_loss.append(np.mean(np.array(decov_batch_loss)))
-
-    batch_loss = []
-    model_batch_loss = []
-    decov_batch_loss = []
-
     y_true = []
     y_pred = []
+    history = []
     with torch.no_grad():
         model.eval()
-        for step, (batch_x, batch_y, batch_name) in enumerate(valid_loader):
+        for step, (batch_x, batch_y, batch_name) in enumerate(test_loader):
             batch_x = batch_x.float().to(device)
             batch_y = batch_y.float().to(device)
             batch_demo = []
@@ -692,44 +760,58 @@ for each_epoch in range(100):
                 batch_demo.append(cur_demo)
 
             batch_demo = torch.stack(batch_demo).to(device)
-            output,decov_loss = model(batch_x, batch_demo)
+            output = model(batch_x, batch_demo)[0]
 
-            model_loss = get_loss(output, batch_y.unsqueeze(-1))
-
-            loss = model_loss + 10 * decov_loss
+            loss = get_loss(output, batch_y.unsqueeze(-1))
             batch_loss.append(loss.cpu().detach().numpy())
-            model_batch_loss.append(model_loss.cpu().detach().numpy())
-            decov_batch_loss.append(decov_loss.cpu().detach().numpy())
             y_pred += list(output.cpu().detach().numpy().flatten())
             y_true += list(batch_y.cpu().numpy().flatten())
 
-    valid_loss.append(np.mean(np.array(batch_loss)))
-    valid_model_loss.append(np.mean(np.array(model_batch_loss)))
-    valid_decov_loss.append(np.mean(np.array(decov_batch_loss)))
-
-    print("\n==>Predicting on validation")
-    print('Valid Loss = %.4f'%(valid_loss[-1]))
-    print('valid_model Loss = %.4f'%(valid_model_loss[-1]))
-    print('valid_decov Loss = %.4f'%(valid_decov_loss[-1]))
+    print("\n==>Predicting on test")
+    print('Test Loss = %.4f'%(np.mean(np.array(batch_loss))))
     y_pred = np.array(y_pred)
     y_pred = np.stack([1 - y_pred, y_pred], axis=1)
-    ret = metrics.print_metrics_binary(y_true, y_pred)
-    history.append(ret)
-    print()
+    test_res = metrics.print_metrics_binary(y_true, y_pred)
+    resl = list()
+    resl.append(test_res)
+    test_res_pd = pd.DataFrame(resl)
+    print(test_res_pd.info())
+    test_res_pd.to_csv(os.path.join(data_path, '{}_test_res.csv'.format(suffix)))
 
-    cur_auroc = ret['auroc']
+    ## Bootstrap
+    N = len(y_true)
+    N_idx = np.arange(N)
+    K = 1000
 
-    if cur_auroc > max_roc:
-        max_roc = cur_auroc
-        state = {
-            'net': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'epoch': each_epoch
-        }
-        torch.save(state, file_name)
-        print('\n------------ Save best model ------------\n')
+    auroc = []
+    auprc = []
+    minpse = []
+    for i in range(K):
+        boot_idx = np.random.choice(N_idx, N, replace=True)
+        boot_true = np.array(y_true)[boot_idx]
+        boot_pred = y_pred[boot_idx, :]
+        test_ret = metrics.print_metrics_binary(boot_true, boot_pred, verbose=0)
+        auroc.append(test_ret['auroc'])
+        auprc.append(test_ret['auprc'])
+        minpse.append(test_ret['minpse'])
+        #print('%d/%d'%(i+1,K))
 
-# Save history as CSV
-history_pd = pd.DataFrame(history)
+    resl = list()
+    resl.append({
+        "auroc_m": np.mean(auroc),
+        "auroc_s": np.std(auroc),
+        "auprc_m": np.mean(auprc),
+        "auprc_s": np.std(auprc),
+        "minpse_m": np.mean(minpse),
+        "minpse_s": np.std(minpse)
+    })
+    test_resb_pd = pd.DataFrame(resl)
+    print(test_resb_pd.info())
+    test_resb_pd.to_csv(os.path.join(data_path, '{}_test_resboot.csv'.format(suffix)))
 
-history_pd.to_csv(os.path.join(data_path, '{}_history.csv'.format(suffix)))
+    print('auroc %.4f(%.4f)'%(np.mean(auroc), np.std(auroc)))
+    print('auprc %.4f(%.4f)'%(np.mean(auprc), np.std(auprc)))
+    print('minpse %.4f(%.4f)'%(np.mean(minpse), np.std(minpse)))
+
+
+test()

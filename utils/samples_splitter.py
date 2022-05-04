@@ -79,13 +79,16 @@ def split_list_file(list_file, suffix, total_split=1, train_split=0.82):
     print(train_split_idx)
 
 
-split_list_file(TRAIN_VAL_LIST, 'split0')
-split_list_file(TRAIN_VAL_LIST, 'split1', total_split=0.9)
-split_list_file(TRAIN_VAL_LIST, 'split2', total_split=0.8)
-split_list_file(TRAIN_VAL_LIST, 'split3', total_split=0.7)
-split_list_file(TRAIN_VAL_LIST, 'split4', total_split=0.6)
-split_list_file(TRAIN_VAL_LIST, 'split5', total_split=0.5)
-split_list_file(TRAIN_VAL_LIST, 'split6', total_split=0.4)
+#split_list_file(TRAIN_VAL_LIST, 'split0')
+#split_list_file(TRAIN_VAL_LIST, 'split1', total_split=0.9)
+#split_list_file(TRAIN_VAL_LIST, 'split2', total_split=0.8)
+#split_list_file(TRAIN_VAL_LIST, 'split3', total_split=0.7)
+#split_list_file(TRAIN_VAL_LIST, 'split4', total_split=0.6)
+#split_list_file(TRAIN_VAL_LIST, 'split5', total_split=0.5)
+#split_list_file(TRAIN_VAL_LIST, 'split6', total_split=0.4)
+
+split_list_file(TRAIN_VAL_LIST, 'split9', total_split=0.1)
+#split_list_file(TRAIN_VAL_LIST, 'split01', total_split=0.01)
 
 #copy_check_files(VAL_LIST, TRAIN_DATA_DIR, TRAIN_DATA_DIR)
 #copy_check_files(VAL_LIST, ALL_DATA_DIR, TRAIN_DATA_DIR, check=True)

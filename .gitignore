@@ -15,8 +15,9 @@ data/decompensation
 data/in-hospital-mortality
 data/train_val
 data/all/
-data/test.zip
 data/test/
+data/*.zip
+data/*.tar
 data/train.zip
 data/data_splits.zip
 data/train_bench/
