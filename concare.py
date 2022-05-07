@@ -814,4 +814,5 @@ def test():
     print('minpse %.4f(%.4f)'%(np.mean(minpse), np.std(minpse)))
 
 
-test()
+#test()
+train_val()
