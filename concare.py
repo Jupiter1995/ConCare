@@ -18,17 +18,16 @@ from utils.readers import InHospitalMortalityReader
 from utils.preprocessing import Discretizer, Normalizer
 from utils import metrics
 
-
 data_path = './data/'
 data_in_hosp = os.path.join(data_path, 'all')
 suffix = sys.argv[1]
+mode = sys.argv[2]
 file_name = './model/{}_concare0'.format(suffix)
 small_part = False
 arg_timestep = 1.0
 batch_size = 256
 epochs = 100
 
-# Build readers, discretizers, normalizers
 train_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'train_val'),
                                          listfile=os.path.join(data_path, '{}_train_listfile.csv'.format(suffix)),
                                          period_length=48.0)
@@ -109,6 +108,7 @@ for each_idx in range(9, 12):
 
 # Models
 
+
 class SingleAttention(nn.Module):
     def __init__(self, attention_input_dim, attention_hidden_dim, attention_type='add', demographic_dim=12, time_aware=False, use_demographic=False):
         super(SingleAttention, self).__init__()
@@ -119,9 +119,6 @@ class SingleAttention(nn.Module):
         self.use_demographic = use_demographic
         self.demographic_dim = demographic_dim
         self.time_aware = time_aware
-
-        # batch_time = torch.arange(0, batch_mask.size()[1], dtype=torch.float32).reshape(1, batch_mask.size()[1], 1)
-        # batch_time = batch_time.repeat(batch_mask.size()[0], 1, 1)
 
         if attention_type == 'add':
             if self.time_aware == True:
@@ -177,15 +174,6 @@ class SingleAttention(nn.Module):
     def forward(self, input, demo=None):
 
         batch_size, time_step, input_dim = input.size() # batch_size * time_step * hidden_dim(i)
-        #assert(input_dim == self.input_dim)
-
-        # time_decays = torch.zeros((time_step,time_step)).to(device)# t*t
-        # for this_time in range(time_step):
-        #     for pre_time in range(time_step):
-        #         if pre_time > this_time:
-        #             break
-        #         time_decays[this_time][pre_time] = torch.tensor(this_time - pre_time, dtype=torch.float32).to(device)
-        # b_time_decays = tile(time_decays, 0, batch_size).view(batch_size,time_step,time_step).unsqueeze(-1).to(device)# b t t 1
 
         time_decays = torch.tensor(range(47,-1,-1), dtype=torch.float32).unsqueeze(-1).unsqueeze(0).to(device)# 1*t*1
         b_time_decays = time_decays.repeat(batch_size,1,1)+1# b t 1
@@ -232,26 +220,12 @@ class SingleAttention(nn.Module):
             dot_product = torch.matmul(q, k.transpose(1, 2)).squeeze() # b t
             denominator =  self.sigmoid(self.rate) * (torch.log(2.72 +  (1-self.sigmoid(dot_product)))* (b_time_decays.squeeze()))
             e = self.relu(self.sigmoid(dot_product)/(denominator)) # b * t
-        #          * (b_time_decays.squeeze())
-        # e = torch.exp(e - torch.max(e, dim=-1, keepdim=True).values)
 
-        # if self.attention_width is not None:
-        #     if self.history_only:
-        #         lower = torch.arange(0, time_step).to(device) - (self.attention_width - 1)
-        #     else:
-        #         lower = torch.arange(0, time_step).to(device) - self.attention_width // 2
-        #     lower = lower.unsqueeze(-1)
-        #     upper = lower + self.attention_width
-        #     indices = torch.arange(0, time_step).unsqueeze(0).to(device)
-        #     e = e * (lower <= indices).float() * (indices < upper).float()
-
-        # s = torch.sum(e, dim=-1, keepdim=True)
-        # mask = subsequent_mask(time_step).to(device) # 1 t t 下三角
-        # scores = e.masked_fill(mask == 0, -1e9)# b t t 下三角
         a = self.softmax(e) #B*T
         v = torch.matmul(a.unsqueeze(1), input).squeeze() #B*I
 
         return v, a
+
 
 class FinalAttentionQKV(nn.Module):
     def __init__(self, attention_input_dim, attention_hidden_dim, attention_type='add', dropout=None):
@@ -323,9 +297,11 @@ class FinalAttentionQKV(nn.Module):
 
         return v, a
 
+
 def clones(module, N):
     "Produce N identical layers."
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+
 
 def tile(a, dim, n_tile):
     init_dim = a.size(dim)
@@ -334,6 +310,7 @@ def tile(a, dim, n_tile):
     a = a.repeat(*(repeat_idx))
     order_index = torch.LongTensor(np.concatenate([init_dim * np.arange(n_tile) + i for i in range(init_dim)])).to(device)
     return torch.index_select(a, dim, order_index).to(device)
+
 
 class PositionwiseFeedForward(nn.Module): # new added
     "Implements FFN equation."
@@ -346,23 +323,7 @@ class PositionwiseFeedForward(nn.Module): # new added
     def forward(self, x):
         return self.w_2(self.dropout(F.relu(self.w_1(x)))), None
 
-# class PositionwiseFeedForwardConv(nn.Module):
 
-#     def __init__(self, model_dim=512, ffn_dim=2048, dropout=0.0):
-#         super(PositionalWiseFeedForward, self).__init__()
-#         self.w1 = nn.Conv1d(model_dim, ffn_dim, 1)
-#         self.w2 = nn.Conv1d(model_dim, ffn_dim, 1)
-#         self.dropout = nn.Dropout(dropout)
-#         self.layer_norm = nn.LayerNorm(model_dim)
-
-#     def forward(self, x):
-#         output = x.transpose(1, 2)
-#         output = self.w2(F.relu(self.w1(output)))
-#         output = self.dropout(output.transpose(1, 2))
-
-#         # add residual and norm layer
-#         output = self.layer_norm(x + output)
-#         return output
 
 class PositionalEncoding(nn.Module): # new added / not use anymore
     "Implement the PE function."
@@ -384,11 +345,13 @@ class PositionalEncoding(nn.Module): # new added / not use anymore
                          requires_grad=False)
         return self.dropout(x)
 
+
 def subsequent_mask(size):
     "Mask out subsequent positions."
     attn_shape = (1, size, size)
     subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
     return torch.from_numpy(subsequent_mask) == 0 # 下三角矩阵
+
 
 def attention(query, key, value, mask=None, dropout=None):
     "Compute 'Scaled Dot Product Attention'"
@@ -401,6 +364,7 @@ def attention(query, key, value, mask=None, dropout=None):
     if dropout is not None:
         p_attn = dropout(p_attn)
     return torch.matmul(p_attn, value), p_attn # b h t v (d_k)
+
 
 class MultiHeadedAttention(nn.Module):
     def __init__(self, h, d_model, dropout=0):
@@ -450,6 +414,7 @@ class MultiHeadedAttention(nn.Module):
 
         return self.final_linear(x), DeCov_loss
 
+
 class LayerNorm(nn.Module):
     def __init__(self, features, eps=1e-7):
         super(LayerNorm, self).__init__()
@@ -462,6 +427,7 @@ class LayerNorm(nn.Module):
         std = x.std(-1, keepdim=True)
         return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
 
+
 def cov(m, y=None):
     if y is not None:
         m = torch.cat((m, y), dim=0)
@@ -469,6 +435,7 @@ def cov(m, y=None):
     x = m - m_exp[:, None]
     cov = 1 / (x.size(1) - 1) * x.mm(x.t())
     return cov
+
 
 class SublayerConnection(nn.Module):
     """
@@ -489,7 +456,7 @@ class ConCare(nn.Module):
     def __init__(self, input_dim, hidden_dim, d_model,  MHD_num_head, d_ff, output_dim, keep_prob=0.5):
         super(ConCare, self).__init__()
 
-        # hyperparameters
+        # hyper parameters
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim  # d_model
         self.d_model = d_model
@@ -524,16 +491,13 @@ class ConCare(nn.Module):
 
     def forward(self, input, demo_input):
         # input shape [batch_size, timestep, feature_dim]
-        demo_main = self.tanh(self.demo_proj_main(demo_input)).unsqueeze(1)# b hidden_dim
+        demo_main = self.tanh(self.demo_proj_main(demo_input)).unsqueeze(1)
 
         batch_size = input.size(0)
         time_step = input.size(1)
         feature_dim = input.size(2)
-        assert(feature_dim == self.input_dim)# input Tensor : 256 * 48 * 76
+        assert(feature_dim == self.input_dim)
         assert(self.d_model % self.MHD_num_head == 0)
-
-        # Initialization
-        #cur_hs = Variable(torch.zeros(batch_size, self.hidden_dim).unsqueeze(0))
 
         # forward
         GRU_embeded_input = self.GRUs[0](input[:,:,0].unsqueeze(-1), Variable(torch.zeros(batch_size, self.hidden_dim).unsqueeze(0)).to(device))[0] # b t h
@@ -546,42 +510,24 @@ class ConCare(nn.Module):
         Attention_embeded_input = torch.cat((Attention_embeded_input, demo_main), 1)# b i+1 h
         posi_input = self.dropout(Attention_embeded_input) # batch_size * d_input+1 * hidden_dim
 
-        #         GRU_embeded_input = self.GRUs[0](input[:,:,0].unsqueeze(-1), Variable(torch.zeros(batch_size, self.hidden_dim).unsqueeze(0)).to(device))[0][:,-1,:].unsqueeze(1) # b 1 h
-        #         for i in range(feature_dim-1):
-        #             embeded_input = self.GRUs[i+1](input[:,:,i+1].unsqueeze(-1), Variable(torch.zeros(batch_size, self.hidden_dim).unsqueeze(0)).to(device))[0][:,-1,:].unsqueeze(1) # b 1 h
-        #             GRU_embeded_input = torch.cat((GRU_embeded_input, embeded_input), 1)
-
-        #         GRU_embeded_input = torch.cat((GRU_embeded_input, demo_main), 1)# b i+1 h
-        #         posi_input = self.dropout(GRU_embeded_input) # batch_size * d_input * hidden_dim
-
-
-        #mask = subsequent_mask(time_step).to(device) # 1 t t 下三角 N to 1任务不用mask
         contexts = self.SublayerConnection(posi_input, lambda x: self.MultiHeadedAttention(posi_input, posi_input, posi_input, None))# # batch_size * d_input * hidden_dim
 
         DeCov_loss = contexts[1]
         contexts = contexts[0]
 
-        contexts = self.SublayerConnection(contexts, lambda x: self.PositionwiseFeedForward(contexts))[0]# # batch_size * d_input * hidden_dim
-        #contexts = contexts.view(batch_size, feature_dim * self.hidden_dim)#
-        # contexts = torch.matmul(self.Wproj, contexts) + self.bproj
-        # contexts = contexts.squeeze()
-        # demo_key = self.demo_proj(demo_input)# b hidden_dim
-        # demo_key = self.relu(demo_key)
-        # input_dim_scores = torch.matmul(contexts, demo_key.unsqueeze(-1)).squeeze() # b i
-        # input_dim_scores = self.dropout(self.sigmoid(input_dim_scores)).unsqueeze(1)# b i
-
-        # weighted_contexts = torch.matmul(input_dim_scores, contexts).squeeze()
+        contexts = self.SublayerConnection(contexts, lambda x: self.PositionwiseFeedForward(contexts))[0]
 
         weighted_contexts = self.FinalAttentionQKV(contexts)[0]
         output = self.output1(self.relu(self.output0(weighted_contexts)))# b 1
         output = self.sigmoid(output)
 
         return output, DeCov_loss
-    #, self.MultiHeadedAttention.attn
+
 
 def get_loss(y_pred, y_true):
     loss = torch.nn.BCELoss()
     return loss(y_pred, y_true)
+
 
 class Dataset(data.Dataset):
     def __init__(self, x, y, name):
@@ -609,7 +555,7 @@ torch.manual_seed(RANDOM_SEED) # cpu
 torch.cuda.manual_seed(RANDOM_SEED) #gpu
 torch.backends.cudnn.deterministic=True # cudnn
 
-model = ConCare(input_dim = 76, hidden_dim = 64, d_model = 64,  MHD_num_head = 4 , d_ff = 256, output_dim = 1).to(device)
+model = ConCare(input_dim=76, hidden_dim=64, d_model=64,  MHD_num_head=4, d_ff=256, output_dim=1).to(device)
 # input_dim, d_model, d_k, d_v, MHD_num_head, d_ff, output_dim
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
@@ -794,7 +740,6 @@ def test():
         auroc.append(test_ret['auroc'])
         auprc.append(test_ret['auprc'])
         minpse.append(test_ret['minpse'])
-        #print('%d/%d'%(i+1,K))
 
     resl = list()
     resl.append({
@@ -814,5 +759,9 @@ def test():
     print('minpse %.4f(%.4f)'%(np.mean(minpse), np.std(minpse)))
 
 
-#test()
-train_val()
+if mode == 'train':
+    train_val()
+elif mode == 'test':
+    test()
+else:
+    raise ValueError("Please select either 'train' or 'test' mode.")

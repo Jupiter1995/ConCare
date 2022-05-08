@@ -1,37 +1,104 @@
-# ConCare: Personalized Clinical Feature Embedding via Capturing the Healthcare Context
+# CS598 Deep Learning for Healthcare, Paper Reproduction
+### ConCare: Personalized Clinical Feature Embedding via Capturing the Healthcare Context
+#### Group ID: 141, Paper ID: 210 (classified as hard)
+#### Linhan Yang (linhany2) and Alejandro Pimentel (ap41)
 
-The source code for *ConCare: Personalized Clinical Feature Embedding via Capturing the Healthcare Context*
+### Citation to the original paper
 
-http://47.93.42.104/215 (Cause of death: CVD)   
-http://47.93.42.104/318 (Cause of death: GI disease)   
-http://47.93.42.104/616 (Cause of death: Other)   
-http://47.93.42.104/265 (Cause of death: GI disease)    
-http://47.93.42.104/812 (Cause of death: Cachexia)   
-http://47.93.42.104/455 (Cause of death: CVD)       
-http://47.93.42.104/998 (Alive)       
-http://47.93.42.104/544 (Alive)    
+https://arxiv.org/abs/1911.12216
 
-Thanks for your interest in our work. Welcome to test the prototype of our visualization tool. The clinical hidden status is built by our latest representation learning model ConCare. The internationalised multi-language support will be available soon.
+Liantao Ma, Chaohe Zhang, Yasha Wang, Wenjie Ruan, Jiangtao Wang, Wen Tang, Xinyu Ma, Xin Gao, Junyi Gao
 
-## Requirements
+### Original repository
 
-* Install python, pytorch. We use Python 3.7.3, Pytorch 1.1.
-* If you plan to use GPU computation, install CUDA
+https://github.com/Accountable-Machine-Intelligence/ConCare
 
-## Data preparation
-We do not provide the MIMIC-III data itself. You must acquire the data yourself from https://mimic.physionet.org/. Specifically, download the CSVs. To run decompensation prediction task on MIMIC-III bechmark dataset, you should first build benchmark dataset according to https://github.com/YerevaNN/mimic3-benchmarks/.
+### Data download instruction
 
-After building the **in-hospital mortality** dataset, please save the files in ```in-hospital-mortality``` directory to ```data/``` directory.
+MIMIC-III data must be acquired from https://mimic.physionet.org/. Specifically, download the CSVs. 
 
+To build the **in-hospital mortality** dataset follow instructions from https://github.com/YerevaNN/mimic3-benchmarks/.
 
-To make it easier for you to use our code as well as the data, we have uploaded the trained model as well.  We also upload the demographic (static baseline) information files to the Google Drive. 
+Save the ```train``` and ```test``` folders under ```data/``` directory.
 
-You can download it from this link directly. https://drive.google.com/file/d/1TXn4UdtQCzfd7TdDJAo_6_IcnO2LUa1a/view?usp=sharing
+8 different list files are provided under ```data/```:
 
-The test set can be obtained via https://drive.google.com/file/d/1KHRPLznKMFi4s1hCxDxAjGWBPPgHXxj7/view?usp=sharing
+* split<n>_train_listfile.csv
+* split<n>_val_listfile.csv
 
-## Run ConCare
+where <n> can be 0,1,2,3,4,5,6 or 9.
 
-All the hyper-parameters and steps are included in the `.ipynb` file, you can run it directly.
+Number 9 is the smallest data split.
+Additionally, ```splitc_``` files correspond to the original data split shared by ConCare authors. 
 
-You can also load the trained model, which is saved in the `concare0` file.
+For the demographic data can be downloaded from https://drive.google.com/drive/folders/1M8a-VD39v3FxZU_T-FK4q5odif4A3XuB?usp=sharing, 
+
+The file ```demographic.zip``` should be extracted under ```data/```.
+
+### Execution environment
+
+A Conda environment file is provided with the list of dependencies used. See ```ConCare.yaml```
+
+```yaml
+name: ConCare
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - pip
+  - python=3.7.3
+  - numpy
+  - pytorch
+  - cudatoolkit
+  - scipy
+  - scikit-learn
+```
+
+### Training
+
+To execute examples:
+
+```
+python concare.py split9 train
+```
+
+```
+python concare.py splitc train
+```
+
+Depending on the executed split, a model will be created under ```model``` folder.
+
+### Evaluation
+
+```
+python concare.py split9 test
+```
+
+```
+python concare.py splitc test
+```
+
+The corresponding model trained on the indicated split will be evaluated using the files ```test_listfile.csv``` 
+and ```test/```.
+
+### Reproduced trained model
+
+Model can be downloaded from: https://drive.google.com/drive/folders/1M8a-VD39v3FxZU_T-FK4q5odif4A3XuB?usp=sharing
+
+Note that provided model was created using an environment with GPU support.
+
+### Reproduced Results
+
+* Paper Test Results (Bootstraping)
+
+| AUROC   | AUPRC  | min(Se, P+)    |
+| --------|--------|--------------- |
+| 0.8702  | 0.5317 | 0.5082         |
+
+* Reproduced Test Results (Bootstraping)
+
+| AUROC   | AUPRC  | min(Se, P+)    |
+| --------|--------|--------------- |
+| 0.8675  | 0.5293 | 0.5092         |
